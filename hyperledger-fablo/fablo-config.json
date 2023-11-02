@@ -1,0 +1,124 @@
+{
+  "$schema": "https://github.com/hyperledger-labs/fablo/releases/download/1.2.0/schema.json",
+  "global": {
+    "fabricVersion": "2.4.7",
+    "tls": false,
+    "engine": "docker",
+    "peerDevMode": false
+  },
+  "orgs": [
+    {
+      "organization": {
+        "name": "Orderer",
+        "domain": "orderer.example.com"
+      },
+      "orderers": [
+        {
+          "groupName": "group1",
+          "type": "solo",
+          "instances": 3
+        }
+      ],
+      "tools": {
+        "fabloRest": true
+      }
+    },
+    {
+      "organization": {
+        "name": "Org1",
+        "domain": "org1.example.com"
+      },
+      "peer": {
+        "instances": 2,
+        "db": "LevelDb"
+      },
+      "tools": {
+        "fabloRest": true
+      }
+    },
+    {
+      "organization": {
+        "name": "Org2",
+        "domain": "org2.example.com"
+      },
+      "peer": {
+        "instances": 2,
+        "db": "CouchDb"
+      },
+      "tools": {
+        "fabloRest": true
+      }
+    },
+    {
+      "organization": {
+        "name": "Org3",
+        "domain": "org3.example.com"
+      },
+      "peer": {
+        "instances": 2,
+        "db": "LevelDb"
+      },
+      "tools": {
+        "fabloRest": true
+      }
+    }
+  ],
+  "channels": [
+    {
+      "name": "my-channel1",
+      "orgs": [
+        {
+          "name": "Org1",
+          "peers": [
+            "peer0"
+          ]
+        },
+        {
+          "name": "Org2",
+          "peers": [
+            "peer0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "my-channel2",
+      "orgs": [
+        {
+          "name": "Org2",
+          "peers": [
+            "peer1"
+          ]
+        },
+        {
+          "name": "Org3",
+          "peers": [
+            "peer1"
+          ]
+        }
+      ]
+    }
+  ],
+  "chaincodes": [
+    {
+      "name": "chaincode_NFT_Collectibles",
+      "version": "0.0.1",
+      "lang": "golang",
+      "channel": "my-channel1",
+      "directory": "./chaincodes/chaincode-go-NFT-Collectibles"
+    },
+    {
+      "name": "chaincode_DEX_AMM",
+      "version": "0.0.1",
+      "lang": "golang",
+      "channel": "my-channel2",
+      "directory": "./chaincodes/chaincode-go-DEX-AMM",
+      "privateData": [
+        {
+          "name": "Collection1",
+          "orgNames": ["Org2"]
+        }
+      ]
+    }
+  ]
+}
