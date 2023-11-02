@@ -27,6 +27,7 @@ builders/
 config/
 external-chaincode/
 install-fabric.sh
+fablo-target
 
 # override the ignore of all config/ folders
 !full-stack-asset-transfer-guide/infrastructure/sample-network/config
