@@ -108,6 +108,13 @@
       "directory": "./chaincodes/chaincode-go-NFT-Collectibles"
     },
     {
+      "name": "chaincode_DEX_Orderbook",
+      "version": "0.0.1",
+      "lang": "golang",
+      "channel": "my-channel1",
+      "directory": "./chaincodes/chaincode-go-DEX-Orderbook"
+    },
+    {
       "name": "chaincode_DEX_AMM",
       "version": "0.0.1",
       "lang": "golang",
@@ -117,6 +124,19 @@
         {
           "name": "Collection1",
           "orgNames": ["Org2"]
+        }
+      ]
+    },
+    {
+      "name": "chaincode_First_Price_Bid",
+      "version": "0.0.1",
+      "lang": "golang",
+      "channel": "my-channel2",
+      "directory": "./chaincodes/chaincode-go-First-Price-Bid",
+      "privateData": [
+        {
+          "name": "Collection2",
+          "orgNames": ["Org3"]
         }
       ]
     }
