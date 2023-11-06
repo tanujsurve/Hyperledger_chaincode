@@ -48,24 +48,11 @@
       "tools": {
         "fabloRest": true
       }
-    },
-    {
-      "organization": {
-        "name": "Org3",
-        "domain": "org3.example.com"
-      },
-      "peer": {
-        "instances": 2,
-        "db": "LevelDb"
-      },
-      "tools": {
-        "fabloRest": true
-      }
     }
   ],
   "channels": [
     {
-      "name": "my-channel1",
+      "name": "my-channel",
       "orgs": [
         {
           "name": "Org1",
@@ -80,23 +67,6 @@
           ]
         }
       ]
-    },
-    {
-      "name": "my-channel2",
-      "orgs": [
-        {
-          "name": "Org2",
-          "peers": [
-            "peer1"
-          ]
-        },
-        {
-          "name": "Org3",
-          "peers": [
-            "peer1"
-          ]
-        }
-      ]
     }
   ],
   "chaincodes": [
@@ -104,41 +74,57 @@
       "name": "chaincode_NFT_Collectibles",
       "version": "0.0.1",
       "lang": "golang",
-      "channel": "my-channel1",
+      "channel": "my-channel",
       "directory": "./chaincodes/chaincode-go-NFT-Collectibles"
-    },
-    {
-      "name": "chaincode_DEX_Orderbook",
-      "version": "0.0.1",
-      "lang": "golang",
-      "channel": "my-channel1",
-      "directory": "./chaincodes/chaincode-go-DEX-Orderbook"
     },
     {
       "name": "chaincode_DEX_AMM",
       "version": "0.0.1",
       "lang": "golang",
-      "channel": "my-channel2",
-      "directory": "./chaincodes/chaincode-go-DEX-AMM",
-      "privateData": [
-        {
-          "name": "Collection1",
-          "orgNames": ["Org2"]
-        }
-      ]
+      "channel": "my-channel",
+      "directory": "./chaincodes/chaincode-go-DEX-AMM"
+    },
+    {
+      "name": "chaincode_Second_Price_Bid",
+      "version": "0.0.1",
+      "lang": "golang",
+      "channel": "my-channel",
+      "directory": "./chaincodes/chaincode-go-Second-Price-Bid"
+    },
+    {
+      "name": "chaincode_Mint_NFT",
+      "version": "0.0.1",
+      "lang": "golang",
+      "channel": "my-channel",
+      "directory": "./chaincodes/chaincode-go-Mint-NFT"
+    },
+    {
+      "name": "chaincode_DEX_Orderbook",
+      "version": "0.0.1",
+      "lang": "golang",
+      "channel": "my-channel",
+      "directory": "./chaincodes/chaincode-go-DEX-Orderbook"
     },
     {
       "name": "chaincode_First_Price_Bid",
       "version": "0.0.1",
       "lang": "golang",
-      "channel": "my-channel2",
-      "directory": "./chaincodes/chaincode-go-First-Price-Bid",
-      "privateData": [
-        {
-          "name": "Collection2",
-          "orgNames": ["Org3"]
-        }
-      ]
+      "channel": "my-channel",
+      "directory": "./chaincodes/chaincode-go-First-Price-Bid"
+    },
+    {
+      "name": "chaincode_NFT_Real_Estate",
+      "version": "0.0.1",
+      "lang": "golang",
+      "channel": "my-channel",
+      "directory": "./chaincodes/chaincode-go-NFT-Real-Estate"
+    },
+    {
+      "name": "chaincode_NFT_Event_Ticket",
+      "version": "0.0.1",
+      "lang": "golang",
+      "channel": "my-channel",
+      "directory": "./chaincodes/chaincode-go-NFT-Event-Ticket"
     }
   ]
 }
