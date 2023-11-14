@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
-	sc "github.com/hyperledger/fabric-protos-go/peer"
 )
 
 type SmartContract struct {
@@ -15,69 +13,69 @@ type SmartContract struct {
 }
 
 type PropertyNFT struct {
-	PropertyID string `json:"propertyID"`
+	PropertyID  string `json:"propertyID"`
 	Description string `json:"description"`
-	TotalShares int `json:"totalShares"`
+	TotalShares int    `json:"totalShares"`
 }
 
 type PropertyShare struct {
-	ShareID string `json:"shareID"`
+	ShareID    string `json:"shareID"`
 	PropertyID string `json:"propertyID"`
-	Owner string `json:"owner"`
-	NumShares int `json:"numShares"`
+	Owner      string `json:"owner"`
+	NumShares  int    `json:"numShares"`
 }
 
-func (s *SmartContract) Init(APIstub shim.ChaincodeStubInterface) sc.Response {
-	return shim.Success(nil)
+func (s *SmartContract) Init(ctx contractapi.TransactionContextInterface) error {
+	return nil
 }
 
-func (s *SmartContract) Invoke(APIstub shim.ChaincodeStubInterface) sc.Response {
-	function, args := APIstub.GetFunctionAndParameters()
+// func (s *SmartContract) Invoke(ctx contractapi.TransactionContextInterface) error {
+// 	function, args := ctx.GetStub().GetFunctionAndParameters()
 
-	switch function {
-		case "mintPropertyNFT":
-			return s.mintPropertyNFT(APIstub, args)
-		case "buyShares":
-			return s.buyShares(APIstub, args)
-		case "transferShares":
-			return s.transferShares(APIstub, args)
-		default:
-			return shim.Error("Invalid function name.")
-	}
-}
+// 	switch function {
+// 		case "mintPropertyNFT":
+// 			return s.mintPropertyNFT(ctx, args)
+// 		case "buyShares":
+// 			return s.buyShares(ctx, args)
+// 		case "transferShares":
+// 			return s.transferShares(ctx, args)
+// 		default:
+// 			return fmt.Errorf("Invalid function name.")
+// 	}
+// }
 
-func (s *SmartContract) mintPropertyNFT(APIstub shim.ChaincodeStubInterface, args []string) sc.Response {
+func (t *SmartContract) MintPropertyNFT(ctx contractapi.TransactionContextInterface, args []string) error {
 	// args: propertyID, description
 	if len(args) != 2 {
-		return shim.Error("Incorrect number of arguments. Expecting 2")
+		return fmt.Errorf("Incorrect number of arguments. Expecting 2")
 	}
 
-	property := PropertyNFT {
-		PropertyID: args[0],
+	property := PropertyNFT{
+		PropertyID:  args[0],
 		Description: args[1],
 		TotalShares: 1000, // defaulting to 1,000 shares for fractional ownership
 	}
 
 	propertyAsBytes, _ := json.Marshal(property)
-	err := APIstub.PutState(args[0], propertyAsBytes)
+	err := ctx.GetStub().PutState(args[0], propertyAsBytes)
 
 	if err != nil {
-		return shim.Error(fmt.Sprintf("Failed to mint property NFT: %s", args[0]))
+		return fmt.Errorf(fmt.Sprintf("Failed to mint property NFT: %s", args[0]))
 	}
 
-	return shim.Success(nil)
+	return nil
 }
 
-func (s *SmartContract) buyShares(APIstub shim.ChaincodeStubInterface, args []string) sc.Response {
+func (t *SmartContract) BuyShares(ctx contractapi.TransactionContextInterface, args []string) error {
 	// args: shareID, propertyID, owner, numShares
 	if len(args) != 4 {
-		return shim.Error("Incorrect number of arguments. Expecting 4")
+		return fmt.Errorf("Incorrect number of arguments. Expecting 4")
 	}
 
-	propertyAsBytes, _ := APIstub.GetState(args[1])
+	propertyAsBytes, _ := ctx.GetStub().GetState(args[1])
 
 	if propertyAsBytes == nil {
-		return shim.Error("Property not found")
+		return fmt.Errorf("Property not found")
 	}
 
 	var property PropertyNFT
@@ -86,40 +84,40 @@ func (s *SmartContract) buyShares(APIstub shim.ChaincodeStubInterface, args []st
 	requestedShares, _ := strconv.Atoi(args[3])
 
 	if requestedShares < 1 || requestedShares > property.TotalShares {
-		return shim.Error("Invalid number of shares requested")
+		return fmt.Errorf("Invalid number of shares requested")
 	}
 
-	share := PropertyShare {
-		ShareID: args[0],
+	share := PropertyShare{
+		ShareID:    args[0],
 		PropertyID: args[1],
-		Owner: args[2],
-		NumShares: requestedShares,
+		Owner:      args[2],
+		NumShares:  requestedShares,
 	}
 
 	shareAsBytes, _ := json.Marshal(share)
-	err := APIstub.PutState(args[0], shareAsBytes)
+	err := ctx.GetStub().PutState(args[0], shareAsBytes)
 
 	if err != nil {
-		return shim.Error(fmt.Sprintf("Failed to buy shares: %s", args[0]))
+		return fmt.Errorf(fmt.Sprintf("Failed to buy shares: %s", args[0]))
 	}
 
 	property.TotalShares -= requestedShares
 	propertyAsBytes, _ = json.Marshal(property)
-	APIstub.PutState(args[1], propertyAsBytes)
+	ctx.GetStub().PutState(args[1], propertyAsBytes)
 
-	return shim.Success(nil)
+	return nil
 }
 
-func (s *SmartContract) transferShares(APIstub shim.ChaincodeStubInterface, args []string) sc.Response {
+func (t *SmartContract) TransferShares(ctx contractapi.TransactionContextInterface, args []string) error {
 	// args: shareID, currentOwner, newOwner
 	if len(args) != 3 {
-		return shim.Error("Incorrect number of arguments. Expecting 3")
+		return fmt.Errorf("Incorrect number of arguments. Expecting 3")
 	}
 
-	shareAsBytes, _ := APIstub.GetState(args[0])
+	shareAsBytes, _ := ctx.GetStub().GetState(args[0])
 
 	if shareAsBytes == nil {
-		return shim.Error("Shares not found")
+		return fmt.Errorf("Shares not found")
 	}
 
 	var share PropertyShare
@@ -127,18 +125,18 @@ func (s *SmartContract) transferShares(APIstub shim.ChaincodeStubInterface, args
 
 	// Check if the current owner is the one initiating the transfer
 	if share.Owner != args[1] {
-		return shim.Error("Only the current owner can transfer the shares")
+		return fmt.Errorf("Only the current owner can transfer the shares")
 	}
 
 	share.Owner = args[2]
 	shareAsBytes, _ = json.Marshal(share)
-	err := APIstub.PutState(args[0], shareAsBytes)
+	err := ctx.GetStub().PutState(args[0], shareAsBytes)
 
 	if err != nil {
-		return shim.Error(fmt.Sprintf("Failed to transfer shares: %s", args[0]))
+		return fmt.Errorf(fmt.Sprintf("Failed to transfer shares: %s", args[0]))
 	}
 
-	return shim.Success(nil)
+	return nil
 }
 
 // func main() {
