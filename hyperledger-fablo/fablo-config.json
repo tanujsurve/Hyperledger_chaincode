@@ -3,6 +3,9 @@
   "global": {
     "fabricVersion": "2.4.7",
     "tls": false,
+    "tools": {
+      "explorer": true
+    },
     "engine": "docker",
     "peerDevMode": false
   },
