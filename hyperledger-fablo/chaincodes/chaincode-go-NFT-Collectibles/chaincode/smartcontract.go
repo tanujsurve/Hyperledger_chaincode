@@ -8,120 +8,164 @@ import (
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
+// SmartContract defines the structure of the chaincode
 type SmartContract struct {
 	contractapi.Contract
 }
 
 // NFT represents an art collectible with details
 type NFT struct {
-	ID string `json:"id"`
+	ID    string `json:"id"`
 	Owner string `json:"owner"`
-	Price int `json:"price"` // Price is in FabBits
+	Price int    `json:"price"` // Price is in FabBits (1 FabCoin = 1000 FabBits)
 }
 
+// InitLedger initializes the ledger with some default values (if needed)
 func (t *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
-	// Initialization logic, if any.
+	nfts := []NFT{
+		{ID: "NFT1", Owner: "Alice", Price: 10000},
+		{ID: "NFT2", Owner: "Bob", Price: 15000},
+	}
+
+	for _, nft := range nfts {
+		nftBytes, err := json.Marshal(nft)
+		if err != nil {
+			return err
+		}
+		err = ctx.GetStub().PutState(nft.ID, nftBytes)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
+// Mint creates a new NFT in the ledger
 func (t *SmartContract) Mint(ctx contractapi.TransactionContextInterface, id string, priceInFabCoin float64) error {
+	if priceInFabCoin <= 0 {
+		return fmt.Errorf("price must be a positive value")
+	}
+
 	priceInFabBits := int(priceInFabCoin * 1000) // Convert FabCoin to FabBits
 
-	ownerId, _ := ctx.GetClientIdentity().GetID()
+	ownerId, err := ctx.GetClientIdentity().GetID()
+	if err != nil {
+		return fmt.Errorf("failed to get client identity: %s", err)
+	}
 
 	nft := NFT{
-		ID: id,
+		ID:    id,
 		Owner: ownerId,
 		Price: priceInFabBits,
 	}
-
-	nftBytes, _ := json.Marshal(nft)
+	nftBytes, err := json.Marshal(nft)
+	if err != nil {
+		return fmt.Errorf("failed to marshal NFT: %s", err)
+	}
 
 	return ctx.GetStub().PutState(id, nftBytes)
 }
 
+// Transfer changes the ownership of an NFT
 func (t *SmartContract) Transfer(ctx contractapi.TransactionContextInterface, id string, newOwner string) error {
-
-	// NFT transfer logic
 	nftBytes, err := ctx.GetStub().GetState(id)
-
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get NFT: %s", err)
+	}
+	if nftBytes == nil {
+		return fmt.Errorf("NFT not found")
 	}
 
 	nft := NFT{}
-	_ = json.Unmarshal(nftBytes, &nft)
+	err = json.Unmarshal(nftBytes, &nft)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal NFT: %s", err)
+	}
+
 	nft.Owner = newOwner
-	updatedNftBytes, _ := json.Marshal(nft)
+	updatedNftBytes, err := json.Marshal(nft)
+	if err != nil {
+		return fmt.Errorf("failed to marshal updated NFT: %s", err)
+	}
 
 	return ctx.GetStub().PutState(id, updatedNftBytes)
 }
 
-// Utility functions to manage the contract's balance in FabBits
-func getContractBalance(ctx contractapi.TransactionContextInterface) (int, error) {
-	balanceBytes, err := ctx.GetStub().GetState("ContractBalance")
+// PurchaseNFT allows a user to buy an NFT from another user
+func (t *SmartContract) PurchaseNFT(ctx contractapi.TransactionContextInterface, nftID string, paymentInFabCoin float64) error {
+	paymentInFabBits := int(paymentInFabCoin * 1000)
 
+	buyerID, err := ctx.GetClientIdentity().GetID()
 	if err != nil {
-		return 0, err
+		return fmt.Errorf("failed to get buyer identity: %s", err)
 	}
 
-	if balanceBytes == nil {
-		return 0, nil // return 0 if balance is not set yet
+	nftBytes, err := ctx.GetStub().GetState(nftID)
+	if err != nil {
+		return fmt.Errorf("failed to get NFT: %s", err)
+	}
+	if nftBytes == nil {
+		return fmt.Errorf("NFT not found")
 	}
 
-	return strconv.Atoi(string(balanceBytes))
+	nft := NFT{}
+	err = json.Unmarshal(nftBytes, &nft)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal NFT: %s", err)
+	}
+
+	if buyerID == nft.Owner {
+		return fmt.Errorf("buyer cannot be the current owner")
+	}
+
+	if paymentInFabBits < nft.Price {
+		return fmt.Errorf("insufficient payment, NFT price is %d FabBits", nft.Price)
+	}
+
+	// Logic to deduct FabBits from buyer's account and add to seller's account
+	// [Assuming the existence of account management logic in the chaincode]
+
+	nft.Owner = buyerID
+	updatedNftBytes, err := json.Marshal(nft)
+	if err != nil {
+		return fmt.Errorf("failed to marshal updated NFT: %s", err)
+	}
+
+	return ctx.GetStub().PutState(nftID, updatedNftBytes)
 }
 
-func setContractBalance(ctx contractapi.TransactionContextInterface, balance int) error {
-	return ctx.GetStub().PutState("ContractBalance", []byte(strconv.Itoa(balance)))
+// QueryNFT retrieves details of an NFT
+func (t *SmartContract) QueryNFT(ctx contractapi.TransactionContextInterface, nftID string) (*NFT, error) {
+	nftBytes, err := ctx.GetStub().GetState(nftID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get NFT: %s", err)
+	}
+	if nftBytes == nil {
+		return nil, fmt.Errorf("NFT not found")
+	}
+
+	nft := new(NFT)
+	err = json.Unmarshal(nftBytes, nft)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal NFT: %s", err)
+	}
+	return nft, nil
 }
 
-func (t *SmartContract) Withdraw(ctx contractapi.TransactionContextInterface, targetAccount string) error {
-	contractBalance, err := getContractBalance(ctx)
-
-	if err != nil {
-		return fmt.Errorf("Failed to fetch contract balance: %v", err)
-	}
-
-	if contractBalance <= 0 {
-		return fmt.Errorf("No balance in the contract")
-	}
-
-	// Transfer balance to targetAccount
-	targetBalanceBytes, err := ctx.GetStub().GetState(targetAccount)
-
-	if err != nil {
-		return fmt.Errorf("Failed to fetch target account balance: %v", err)
-	}
-
-	targetBalance, _ := strconv.Atoi(string(targetBalanceBytes))
-	newTargetBalance := targetBalance + contractBalance
-	err = ctx.GetStub().PutState(targetAccount, []byte(strconv.Itoa(newTargetBalance)))
-
-	if err != nil {
-		return fmt.Errorf("Failed to transfer balance to target account: %v", err)
-	}
-
-	// Reset contract's balance to 0
-	err = setContractBalance(ctx, 0)
-
-	if err != nil {
-		return fmt.Errorf("Failed to reset contract balance: %v", err)
-	}
-
-	return nil
+// SetAccountBalance sets the balance of a given account (for testing)
+func (t *SmartContract) SetAccountBalance(ctx contractapi.TransactionContextInterface, accountID string, balanceInFabCoin float64) error {
+	balanceInFabBits := int(balanceInFabCoin * 1000)
+	return ctx.GetStub().PutState(accountID, []byte(strconv.Itoa(balanceInFabBits)))
 }
 
+// main function can be uncommented when deploying the chaincode
 // func main() {
 // 	chaincode, err := contractapi.NewChaincode(&SmartContract{})
-
 // 	if err != nil {
 // 		fmt.Printf("Error creating NFT chaincode: %s", err.Error())
 // 		return
 // 	}
-
 // 	if err := chaincode.Start(); err != nil {
 // 		fmt.Printf("Error starting NFT chaincode: %s", err.Error())
-
 // 	}
 // }

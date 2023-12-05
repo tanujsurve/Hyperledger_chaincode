@@ -25,124 +25,111 @@ type PropertyShare struct {
 	NumShares  int    `json:"numShares"`
 }
 
-func (s *SmartContract) Init(ctx contractapi.TransactionContextInterface) error {
+// Initialize the Smart Contract with sample data
+func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
+	properties := []PropertyNFT{
+		{PropertyID: "Prop001", Description: "Luxury Apartment in New York", TotalShares: 1000},
+		{PropertyID: "Prop002", Description: "Beach House in California", TotalShares: 500},
+	}
+
+	for _, property := range properties {
+		propertyAsBytes, _ := json.Marshal(property)
+		err := ctx.GetStub().PutState(property.PropertyID, propertyAsBytes)
+		if err != nil {
+			return fmt.Errorf("failed to put to world state. %v", err)
+		}
+	}
 	return nil
 }
 
-// func (s *SmartContract) Invoke(ctx contractapi.TransactionContextInterface) error {
-// 	function, args := ctx.GetStub().GetFunctionAndParameters()
+// Mint a new PropertyNFT
+func (s *SmartContract) MintPropertyNFT(ctx contractapi.TransactionContextInterface, args []string) error {
+	if len(args) != 3 {
+		return fmt.Errorf("incorrect number of arguments. expecting 3")
+	}
 
-// 	switch function {
-// 		case "mintPropertyNFT":
-// 			return s.mintPropertyNFT(ctx, args)
-// 		case "buyShares":
-// 			return s.buyShares(ctx, args)
-// 		case "transferShares":
-// 			return s.transferShares(ctx, args)
-// 		default:
-// 			return fmt.Errorf("Invalid function name.")
-// 	}
-// }
-
-func (t *SmartContract) MintPropertyNFT(ctx contractapi.TransactionContextInterface, args []string) error {
-	// args: propertyID, description
-	if len(args) != 2 {
-		return fmt.Errorf("Incorrect number of arguments. Expecting 2")
+	propertyID := args[0]
+	description := args[1]
+	totalShares, err := strconv.Atoi(args[2])
+	if err != nil {
+		return fmt.Errorf("invalid total shares value")
 	}
 
 	property := PropertyNFT{
-		PropertyID:  args[0],
-		Description: args[1],
-		TotalShares: 1000, // defaulting to 1,000 shares for fractional ownership
+		PropertyID:  propertyID,
+		Description: description,
+		TotalShares: totalShares,
 	}
 
 	propertyAsBytes, _ := json.Marshal(property)
-	err := ctx.GetStub().PutState(args[0], propertyAsBytes)
-
-	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("Failed to mint property NFT: %s", args[0]))
-	}
-
-	return nil
+	return ctx.GetStub().PutState(propertyID, propertyAsBytes)
 }
 
-func (t *SmartContract) BuyShares(ctx contractapi.TransactionContextInterface, args []string) error {
-	// args: shareID, propertyID, owner, numShares
-	if len(args) != 4 {
-		return fmt.Errorf("Incorrect number of arguments. Expecting 4")
+// Buy shares in a PropertyNFT
+func (s *SmartContract) BuyShares(ctx contractapi.TransactionContextInterface, shareID, propertyID, buyer string, numShares, priceInCrypto int) error {
+	propertyAsBytes, err := ctx.GetStub().GetState(propertyID)
+	if err != nil {
+		return fmt.Errorf("failed to get property: %s", err.Error())
 	}
-
-	propertyAsBytes, _ := ctx.GetStub().GetState(args[1])
-
 	if propertyAsBytes == nil {
-		return fmt.Errorf("Property not found")
+		return fmt.Errorf("property not found")
 	}
 
 	var property PropertyNFT
-	json.Unmarshal(propertyAsBytes, &property)
-
-	requestedShares, _ := strconv.Atoi(args[3])
-
-	if requestedShares < 1 || requestedShares > property.TotalShares {
-		return fmt.Errorf("Invalid number of shares requested")
-	}
-
-	share := PropertyShare{
-		ShareID:    args[0],
-		PropertyID: args[1],
-		Owner:      args[2],
-		NumShares:  requestedShares,
-	}
-
-	shareAsBytes, _ := json.Marshal(share)
-	err := ctx.GetStub().PutState(args[0], shareAsBytes)
-
+	err = json.Unmarshal(propertyAsBytes, &property)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("Failed to buy shares: %s", args[0]))
+		return fmt.Errorf("failed to unmarshal property: %s", err.Error())
 	}
 
-	property.TotalShares -= requestedShares
-	propertyAsBytes, _ = json.Marshal(property)
-	ctx.GetStub().PutState(args[1], propertyAsBytes)
+	if numShares < 1 || numShares > property.TotalShares {
+		return fmt.Errorf("invalid number of shares requested")
+	}
 
-	return nil
+	// Create and store the property share
+	share := PropertyShare{
+		ShareID:    shareID,
+		PropertyID: propertyID,
+		Owner:      buyer,
+		NumShares:  numShares,
+	}
+	shareAsBytes, _ := json.Marshal(share)
+	return ctx.GetStub().PutState(shareID, shareAsBytes)
 }
 
-func (t *SmartContract) TransferShares(ctx contractapi.TransactionContextInterface, args []string) error {
-	// args: shareID, currentOwner, newOwner
-	if len(args) != 3 {
-		return fmt.Errorf("Incorrect number of arguments. Expecting 3")
+// Transfer shares from one owner to another
+func (s *SmartContract) TransferShares(ctx contractapi.TransactionContextInterface, shareID, currentOwner, newOwner string) error {
+	shareAsBytes, err := ctx.GetStub().GetState(shareID)
+	if err != nil {
+		return fmt.Errorf("failed to get property share: %s", err.Error())
 	}
-
-	shareAsBytes, _ := ctx.GetStub().GetState(args[0])
-
 	if shareAsBytes == nil {
-		return fmt.Errorf("Shares not found")
+		return fmt.Errorf("property share not found")
 	}
 
 	var share PropertyShare
-	json.Unmarshal(shareAsBytes, &share)
-
-	// Check if the current owner is the one initiating the transfer
-	if share.Owner != args[1] {
-		return fmt.Errorf("Only the current owner can transfer the shares")
-	}
-
-	share.Owner = args[2]
-	shareAsBytes, _ = json.Marshal(share)
-	err := ctx.GetStub().PutState(args[0], shareAsBytes)
-
+	err = json.Unmarshal(shareAsBytes, &share)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("Failed to transfer shares: %s", args[0]))
+		return fmt.Errorf("failed to unmarshal property share: %s", err.Error())
 	}
 
-	return nil
+	if share.Owner != currentOwner {
+		return fmt.Errorf("transfer of shares can only be initiated by the current owner")
+	}
+
+	share.Owner = newOwner
+	updatedShareAsBytes, _ := json.Marshal(share)
+	return ctx.GetStub().PutState(shareID, updatedShareAsBytes)
 }
 
+// Main function
 // func main() {
-// 	err := shim.Start(new(SmartContract))
-
+// 	chaincode, err := contractapi.NewChaincode(new(SmartContract))
 // 	if err != nil {
 // 		fmt.Printf("Error creating new Smart Contract: %s", err)
+// 		return
+// 	}
+
+// 	if err := chaincode.Start(); err != nil {
+// 		fmt.Printf("Error starting Smart Contract: %s", err)
 // 	}
 // }
